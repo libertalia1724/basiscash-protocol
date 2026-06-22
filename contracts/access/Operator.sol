@@ -11,7 +11,7 @@ abstract contract Operator is Context, Ownable {
         address indexed newOperator
     );
 
-    constructor() {
+    constructor() Ownable(msg.sender) {
         _operator = _msgSender();
         emit OperatorTransferred(address(0), _operator);
     }

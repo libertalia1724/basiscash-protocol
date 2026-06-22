@@ -50,7 +50,7 @@ contract SeigniorageProxy is SeigniorageProxyGov {
         address _treasury,
         address _boardroom,
         address _bondroom
-    ) {
+    ) Ownable(msg.sender) {
         treasury = _treasury;
         boardroom = _boardroom;
         bondroom = _bondroom;

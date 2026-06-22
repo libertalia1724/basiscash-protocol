@@ -16,7 +16,7 @@ contract VoteProxy is Operator {
     // Boardroom
     address public boardroom;
 
-    constructor(address _boardroom) {
+    constructor(address _boardroom) Operator() {
         boardroom = _boardroom;
     }
 

@@ -135,7 +135,7 @@ contract BoardroomV2 is
         address _cash,
         address _share,
         address _store
-    ) {
+    ) Ownable(msg.sender) {
         share = IERC20(_share);
         store = ITokenStore(_store);
 

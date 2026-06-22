@@ -51,7 +51,7 @@ contract Distribution is IPool, IPoolGov, PoolStoreWrapper, Operator {
 
     /* ================= CONSTRUCTOR ================= */
 
-    constructor(address _share, address _poolStore) Ownable() {
+    constructor(address _share, address _poolStore) Operator() {
         share = _share;
         store = IPoolStore(_poolStore);
     }
