@@ -30,10 +30,8 @@ pragma solidity ^0.8.0;
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-import '@openzeppelin/contracts/math/SafeMath.sol';
 
 contract Timelock {
-    using SafeMath for uint256;
 
     event NewAdmin(address indexed newAdmin);
     event NewPendingAdmin(address indexed newPendingAdmin);
@@ -140,7 +138,7 @@ contract Timelock {
             'Timelock::queueTransaction: Call must come from admin.'
         );
         require(
-            eta >= getBlockTimestamp().add(delay),
+            eta >= getBlockTimestamp() + delay,
             'Timelock::queueTransaction: Estimated execution block must satisfy delay.'
         );
 
@@ -194,7 +192,7 @@ contract Timelock {
             "Timelock::executeTransaction: Transaction hasn't surpassed time lock."
         );
         require(
-            getBlockTimestamp() <= eta.add(GRACE_PERIOD),
+            getBlockTimestamp() <= eta + GRACE_PERIOD,
             'Timelock::executeTransaction: Transaction is stale.'
         );
 

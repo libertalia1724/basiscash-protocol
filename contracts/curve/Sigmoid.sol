@@ -1,14 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {Math} from '@openzeppelin/contracts/math/Math.sol';
-import {SafeMath} from '@openzeppelin/contracts/math/SafeMath.sol';
+import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 
 import {Operator} from '../access/Operator.sol';
 import {Curve} from './Curve.sol';
 
 contract SigmoidThreshold is Operator, Curve {
-    using SafeMath for uint256;
 
     /* ========== STATE VARIABLES ========== */
 
@@ -93,23 +91,20 @@ contract SigmoidThreshold is Operator, Curve {
             return minCeiling;
         }
 
-        uint256 slotWidth = maxSupply.sub(minSupply).div(slots.length);
-        uint256 xa = _supply.sub(minSupply).div(slotWidth);
-        uint256 xb = Math.min(xa.add(1), slots.length.sub(1));
+        uint256 slotWidth = (maxSupply - minSupply) / slots.length;
+        uint256 xa = (_supply - minSupply) / slotWidth;
+        uint256 xb = Math.min(xa + 1, slots.length - 1);
 
-        uint256 slope = slots[xa].sub(slots[xb]).mul(1e18).div(slotWidth);
-        uint256 wy = slots[xa].add(slope.mul(slotWidth.mul(xa)).div(1e18));
+        uint256 slope = (slots[xa] - slots[xb]) * 1e18 / slotWidth;
+        uint256 wy = slots[xa] + (slope * (slotWidth * xa) / 1e18);
 
         uint256 percentage = 0;
-        if (wy > slope.mul(_supply).div(1e18)) {
-            percentage = wy.sub(slope.mul(_supply).div(1e18));
+        if (wy > slope * _supply / 1e18) {
+            percentage = wy - (slope * _supply / 1e18);
         } else {
-            percentage = slope.mul(_supply).div(1e18).sub(wy);
+            percentage = slope * _supply / 1e18 - wy;
         }
 
-        return
-            minCeiling.add(
-                maxCeiling.sub(minCeiling).mul(percentage).div(1e18)
-            );
+        return minCeiling + (maxCeiling - minCeiling) * percentage / 1e18;
     }
 }

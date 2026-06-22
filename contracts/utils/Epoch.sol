@@ -1,14 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import '@openzeppelin/contracts/math/Math.sol';
-import '@openzeppelin/contracts/math/SafeMath.sol';
+import '@openzeppelin/contracts/utils/math/Math.sol';
 
 import '../access/Operator.sol';
 
 contract Epoch is Operator {
-    using SafeMath for uint256;
-
     uint256 private period;
     uint256 private startTime;
     uint256 private lastExecutedAt;
@@ -23,7 +20,7 @@ contract Epoch is Operator {
         require(_startTime > block.timestamp, 'Epoch: invalid start time');
         period = _period;
         startTime = _startTime;
-        lastExecutedAt = startTime.add(_startEpoch.mul(period));
+        lastExecutedAt = startTime + _startEpoch * period;
     }
 
     /* ========== Modifier ========== */
@@ -51,22 +48,22 @@ contract Epoch is Operator {
 
     // epoch
     function getLastEpoch() public view returns (uint256) {
-        return lastExecutedAt.sub(startTime).div(period);
+        return (lastExecutedAt - startTime) / period;
     }
 
     function getCurrentEpoch() public view returns (uint256) {
-        return Math.max(startTime, block.timestamp).sub(startTime).div(period);
+        return (Math.max(startTime, block.timestamp) - startTime) / period;
     }
 
     function getNextEpoch() public view returns (uint256) {
         if (startTime == lastExecutedAt) {
             return getLastEpoch();
         }
-        return getLastEpoch().add(1);
+        return getLastEpoch() + 1;
     }
 
     function nextEpochPoint() public view returns (uint256) {
-        return startTime.add(getNextEpoch().mul(period));
+        return startTime + getNextEpoch() * period;
     }
 
     // params

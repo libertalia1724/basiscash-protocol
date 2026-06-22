@@ -2,9 +2,8 @@
 pragma solidity ^0.8.0;
 
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
-import {SafeERC20} from '@openzeppelin/contracts/token/ERC20/SafeERC20.sol';
-import {Math} from '@openzeppelin/contracts/math/Math.sol';
-import {SafeMath} from '@openzeppelin/contracts/math/SafeMath.sol';
+import {SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
+import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 
 import {Operator} from '../access/Operator.sol';
@@ -12,7 +11,6 @@ import {IPool, IPoolGov} from './IPool.sol';
 import {IPoolStore, PoolStoreWrapper} from './PoolStoreWrapper.sol';
 
 contract Distribution is IPool, IPoolGov, PoolStoreWrapper, Operator {
-    using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
     /* ================= DATA STRUCTURE ================= */
@@ -71,14 +69,14 @@ contract Distribution is IPool, IPoolGov, PoolStoreWrapper, Operator {
     {
         // re-calc
         if (startTime <= block.timestamp && block.timestamp < periodFinish) {
-            uint256 remaining = periodFinish.sub(block.timestamp);
-            uint256 leftover = remaining.mul(rewardRate);
-            rewardRate = leftover.div(_period);
+            uint256 remaining = periodFinish - block.timestamp;
+            uint256 leftover = remaining * rewardRate;
+            rewardRate = leftover / _period;
         }
 
         period = _period;
         startTime = _startTime;
-        periodFinish = _startTime.add(_period);
+        periodFinish = _startTime + _period;
     }
 
     /**
@@ -88,15 +86,11 @@ contract Distribution is IPool, IPoolGov, PoolStoreWrapper, Operator {
         require(block.timestamp < periodFinish, 'BACPool: already finished');
 
         if (startTime <= block.timestamp) {
-            uint256 remaining = periodFinish.sub(block.timestamp);
-            uint256 leftover = remaining.mul(rewardRate);
-            rewardRate = _amount.add(leftover).div(
-                periodFinish.sub(block.timestamp)
-            );
+            uint256 remaining = periodFinish - block.timestamp;
+            uint256 leftover = remaining * rewardRate;
+            rewardRate = (_amount + leftover) / (periodFinish - block.timestamp);
         } else {
-            rewardRate = rewardRate.add(
-                _amount.div(periodFinish.sub(startTime))
-            );
+            rewardRate = rewardRate + (_amount / (periodFinish - startTime));
         }
     }
 
@@ -124,9 +118,9 @@ contract Distribution is IPool, IPoolGov, PoolStoreWrapper, Operator {
         require(stopped, 'BACPool: not stopped');
         IERC20(share).safeTransfer(_newPool, _amount);
 
-        uint256 remaining = startTime.add(period).sub(periodFinish);
-        uint256 leftover = remaining.mul(rewardRate);
-        IPoolGov(_newPool).setPeriod(block.timestamp.add(1), remaining);
+        uint256 remaining = startTime + period - periodFinish;
+        uint256 leftover = remaining * rewardRate;
+        IPoolGov(_newPool).setPeriod(block.timestamp + 1, remaining);
         IPoolGov(_newPool).setReward(leftover);
     }
 
@@ -159,11 +153,11 @@ contract Distribution is IPool, IPoolGov, PoolStoreWrapper, Operator {
             if (!stopped && block.timestamp >= periodFinish) {
                 // decrease reward rate
                 rewardRateBeforeHalve = rewardRate;
-                rewardRate = rewardRate.mul(75).div(100);
+                rewardRate = rewardRate * 75 / 100;
 
                 // set period
                 startTime = block.timestamp;
-                periodFinish = block.timestamp.add(period);
+                periodFinish = block.timestamp + period;
             }
 
             Pool memory pool = pools[_pid];
@@ -250,7 +244,7 @@ contract Distribution is IPool, IPoolGov, PoolStoreWrapper, Operator {
         view
         returns (uint256)
     {
-        return _crit.mul(store.weightOf(_pid)).div(store.totalWeight());
+        return _crit * store.weightOf(_pid) / store.totalWeight();
     }
 
     /**
@@ -263,7 +257,7 @@ contract Distribution is IPool, IPoolGov, PoolStoreWrapper, Operator {
         override
         returns (uint256)
     {
-        return _rewardRatePerPool(_pid, rewardRate.add(rewardRateExtra));
+        return _rewardRatePerPool(_pid, rewardRate + rewardRateExtra);
     }
 
     /**
@@ -282,28 +276,11 @@ contract Distribution is IPool, IPoolGov, PoolStoreWrapper, Operator {
         }
 
         if (pool.rewardRate != 0 && pool.rewardRate == rewardRateBeforeHalve) {
-            uint256 beforeHalve =
-                startTime
-                    .sub(pool.lastUpdateTime)
-                    .mul(_rewardRatePerPool(_pid, rewardRateBeforeHalve))
-                    .mul(1e18)
-                    .div(store.totalSupply(_pid));
-            uint256 afterHalve =
-                applicableRewardTime()
-                    .sub(startTime)
-                    .mul(rewardRatePerPool(_pid))
-                    .mul(1e18)
-                    .div(store.totalSupply(_pid));
-            return pool.rewardPerTokenStored.add(beforeHalve).add(afterHalve);
+            uint256 beforeHalve = (startTime - pool.lastUpdateTime) * _rewardRatePerPool(_pid, rewardRateBeforeHalve) * 1e18 / store.totalSupply(_pid);
+            uint256 afterHalve = (applicableRewardTime() - startTime) * rewardRatePerPool(_pid) * 1e18 / store.totalSupply(_pid);
+            return pool.rewardPerTokenStored + beforeHalve + afterHalve;
         } else {
-            return
-                pool.rewardPerTokenStored.add(
-                    applicableRewardTime()
-                        .sub(pool.lastUpdateTime)
-                        .mul(rewardRatePerPool(_pid))
-                        .mul(1e18)
-                        .div(store.totalSupply(_pid))
-                );
+            return pool.rewardPerTokenStored + (applicableRewardTime() - pool.lastUpdateTime) * rewardRatePerPool(_pid) * 1e18 / store.totalSupply(_pid);
         }
     }
 
@@ -319,12 +296,7 @@ contract Distribution is IPool, IPoolGov, PoolStoreWrapper, Operator {
         returns (uint256)
     {
         User memory user = users[_pid][_target];
-        return
-            store
-                .balanceOf(_pid, _target)
-                .mul(rewardPerToken(_pid).sub(user.rewardPerTokenPaid))
-                .div(1e18)
-                .add(user.reward);
+        return store.balanceOf(_pid, _target) * (rewardPerToken(_pid) - user.rewardPerTokenPaid) / 1e18 + user.reward;
     }
 
     /* ================= TXNS - ANYONE ================= */

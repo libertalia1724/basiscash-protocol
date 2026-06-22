@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {SafeMath} from '@openzeppelin/contracts/math/SafeMath.sol';
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
-import {SafeERC20} from '@openzeppelin/contracts/token/ERC20/SafeERC20.sol';
+import {SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 
 import {Operator} from '../access/Operator.sol';
 
@@ -118,7 +117,6 @@ interface IPoolStoreGov {
 }
 
 contract PoolStore is IPoolStore, IPoolStoreGov, Operator {
-    using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
     /* ================= DATA STRUCTURE ================= */
@@ -183,7 +181,7 @@ contract PoolStore is IPoolStore, IPoolStoreGov, Operator {
         IERC20 _token,
         uint256 _weight
     ) public override onlyOwner {
-        totalWeight = totalWeight.add(_weight);
+        totalWeight = totalWeight + _weight;
 
         uint256 index = pools.length;
         indexByToken[address(_token)].push(index);
@@ -207,7 +205,7 @@ contract PoolStore is IPoolStore, IPoolStoreGov, Operator {
         Pool memory pool = pools[_pid];
 
         uint256 oldWeight = pool.weight;
-        totalWeight = totalWeight.add(_weight).sub(pool.weight);
+        totalWeight = totalWeight + _weight - pool.weight;
         pool.weight = _weight;
 
         pools[_pid] = pool;
@@ -349,8 +347,8 @@ contract PoolStore is IPoolStore, IPoolStoreGov, Operator {
         address _owner,
         uint256 _amount
     ) public override checkPoolId(_pid) onlyOperator {
-        pools[_pid].totalSupply = pools[_pid].totalSupply.add(_amount);
-        balances[_pid][_owner] = balances[_pid][_owner].add(_amount);
+        pools[_pid].totalSupply += _amount;
+        balances[_pid][_owner] += _amount;
         IERC20(tokenOf(_pid)).safeTransferFrom(
             _msgSender(),
             address(this),
@@ -365,8 +363,8 @@ contract PoolStore is IPoolStore, IPoolStoreGov, Operator {
         address _owner,
         uint256 _amount
     ) internal {
-        pools[_pid].totalSupply = pools[_pid].totalSupply.sub(_amount);
-        balances[_pid][_owner] = balances[_pid][_owner].sub(_amount);
+        pools[_pid].totalSupply -= _amount;
+        balances[_pid][_owner] -= _amount;
         IERC20(tokenOf(_pid)).safeTransfer(_msgSender(), _amount);
 
         emit Withdraw(_msgSender(), _owner, _pid, _amount);

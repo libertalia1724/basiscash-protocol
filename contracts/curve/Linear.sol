@@ -1,13 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {SafeMath} from '@openzeppelin/contracts/math/SafeMath.sol';
-
 import {Operator} from '../access/Operator.sol';
 import {Curve} from './Curve.sol';
 
 contract LinearThreshold is Operator, Curve {
-    using SafeMath for uint256;
 
     /* ========== CONSTRUCTOR ========== */
 
@@ -64,10 +61,8 @@ contract LinearThreshold is Operator, Curve {
             return minCeiling;
         }
 
-        uint256 slope =
-            maxCeiling.sub(minCeiling).mul(1e18).div(maxSupply.sub(minSupply));
-        uint256 ceiling =
-            maxCeiling.sub(slope.mul(_supply.sub(minSupply)).div(1e18));
+        uint256 slope = (maxCeiling - minCeiling) * 1e18 / (maxSupply - minSupply);
+        uint256 ceiling = maxCeiling - (slope * (_supply - minSupply) / 1e18);
 
         return ceiling;
     }

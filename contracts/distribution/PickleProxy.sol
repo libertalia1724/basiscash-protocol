@@ -3,8 +3,7 @@ pragma solidity ^0.8.0;
 
 import {ERC20} from '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
-import {SafeERC20} from '@openzeppelin/contracts/token/ERC20/SafeERC20.sol';
-import {SafeMath} from '@openzeppelin/contracts/math/SafeMath.sol';
+import {SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 
 import {Distribution} from './Distribution.sol';
 import {IPool} from './IPool.sol';
@@ -31,7 +30,6 @@ interface IShareRewardPool {
 
 contract PickleProxy is Operator, ERC20, IShareRewardPool {
     using SafeERC20 for IERC20;
-    using SafeMath for uint256;
 
     address public pool;
     uint256 public pid;

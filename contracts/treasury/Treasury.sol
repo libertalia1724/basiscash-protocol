@@ -2,10 +2,9 @@
 pragma solidity ^0.8.0;
 
 import {Address} from '@openzeppelin/contracts/utils/Address.sol';
-import {Math} from '@openzeppelin/contracts/math/Math.sol';
-import {SafeMath} from '@openzeppelin/contracts/math/SafeMath.sol';
+import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
-import {SafeERC20} from '@openzeppelin/contracts/token/ERC20/SafeERC20.sol';
+import {SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import {
     ReentrancyGuard
 } from '@openzeppelin/contracts/utils/ReentrancyGuard.sol';
@@ -28,7 +27,6 @@ import {TreasuryState} from './TreasuryState.sol';
  */
 contract Treasury is TreasuryState, ContractGuard {
     using SafeERC20 for IERC20;
-    using SafeMath for uint256;
     using Address for address;
 
     /* ========== CONSTRUCTOR ========== */
@@ -80,7 +78,7 @@ contract Treasury is TreasuryState, ContractGuard {
     }
 
     function circulatingSupply() public view returns (uint256) {
-        return IERC20(cash).totalSupply().sub(accumulatedSeigniorage);
+        return IERC20(cash).totalSupply() - accumulatedSeigniorage;
     }
 
     function getCeilingPrice() public view returns (uint256) {
@@ -109,11 +107,11 @@ contract Treasury is TreasuryState, ContractGuard {
     function _updateConversionLimit(uint256 cashPrice) internal {
         uint256 currentEpoch = Epoch(bOracle).getLastEpoch(); // lastest update time
         if (lastBondOracleEpoch != currentEpoch) {
-            uint256 percentage = cashPriceOne.sub(cashPrice);
+            uint256 percentage = cashPriceOne - cashPrice;
             uint256 bondSupply = IERC20(bond).totalSupply();
 
-            bondCap = circulatingSupply().mul(percentage).div(1e18);
-            bondCap = bondCap.sub(Math.min(bondCap, bondSupply));
+            bondCap = circulatingSupply() * percentage / 1e18;
+            bondCap = bondCap - Math.min(bondCap, bondSupply);
 
             lastBondOracleEpoch = currentEpoch;
         }
@@ -146,11 +144,11 @@ contract Treasury is TreasuryState, ContractGuard {
         );
         _updateConversionLimit(cashPrice);
 
-        amount = Math.min(amount, bondCap.mul(cashPrice).div(1e18));
+        amount = Math.min(amount, bondCap * cashPrice / 1e18);
         require(amount > 0, 'Treasury: amount exceeds bond cap');
 
         IBasisAsset(cash).burnFrom(_msgSender(), amount);
-        IBasisAsset(bond).mint(_msgSender(), amount.mul(1e18).div(cashPrice));
+        IBasisAsset(bond).mint(_msgSender(), amount * 1e18 / cashPrice);
 
         emit BoughtBonds(_msgSender(), amount);
     }
@@ -175,9 +173,7 @@ contract Treasury is TreasuryState, ContractGuard {
             'Treasury: treasury has no more budget'
         );
 
-        accumulatedSeigniorage = accumulatedSeigniorage.sub(
-            Math.min(accumulatedSeigniorage, amount)
-        );
+        accumulatedSeigniorage = accumulatedSeigniorage - Math.min(accumulatedSeigniorage, amount);
 
         IBasisAsset(bond).burnFrom(_msgSender(), amount);
         IERC20(cash).safeTransfer(_msgSender(), amount);
@@ -200,12 +196,12 @@ contract Treasury is TreasuryState, ContractGuard {
         }
 
         // circulating supply
-        uint256 percentage = cashPrice.sub(cashPriceOne);
-        uint256 seigniorage = circulatingSupply().mul(percentage).div(1e18);
+        uint256 percentage = cashPrice - cashPriceOne;
+        uint256 seigniorage = circulatingSupply() * percentage / 1e18;
         IBasisAsset(cash).mint(address(this), seigniorage);
 
         // ======================== BIP-3
-        uint256 fundReserve = seigniorage.mul(fundAllocationRate).div(100);
+        uint256 fundReserve = seigniorage * fundAllocationRate / 100;
         if (fundReserve > 0) {
             IERC20(cash).safeIncreaseAllowance(fund, fundReserve);
             ISimpleERCFund(fund).deposit(
@@ -216,26 +212,23 @@ contract Treasury is TreasuryState, ContractGuard {
             emit FundedToCommunityFund(block.timestamp, fundReserve);
         }
 
-        seigniorage = seigniorage.sub(fundReserve);
+        seigniorage = seigniorage - fundReserve;
 
         // ======================== BIP-4
         uint256 treasuryReserve =
             Math.min(
                 seigniorage,
-                IERC20(bond).totalSupply().sub(accumulatedSeigniorage)
-            );
+                IERC20(bond).totalSupply() - accumulatedSeigniorage);
         if (treasuryReserve > 0) {
             if (treasuryReserve == seigniorage) {
-                treasuryReserve = treasuryReserve.mul(80).div(100);
+                treasuryReserve = treasuryReserve * 80 / 100;
             }
-            accumulatedSeigniorage = accumulatedSeigniorage.add(
-                treasuryReserve
-            );
+            accumulatedSeigniorage = accumulatedSeigniorage + treasuryReserve;
             emit TreasuryFunded(block.timestamp, treasuryReserve);
         }
 
         // seigniorage
-        seigniorage = seigniorage.sub(treasuryReserve);
+        seigniorage = seigniorage - treasuryReserve;
         if (seigniorage > 0) {
             IERC20(cash).safeIncreaseAllowance(seigniorageProxy, seigniorage);
             SeigniorageProxy(seigniorageProxy).allocateSeigniorage(seigniorage);
