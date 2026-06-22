@@ -132,7 +132,7 @@ contract Distribution is IPool, IPoolGov, PoolStoreWrapper, Operator {
      */
     modifier updateReward(uint256 _pid, address _target) {
         if (!approvals[store.tokenOf(_pid)]) {
-            IERC20(store.tokenOf(_pid)).safeApprove(
+            IERC20(store.tokenOf(_pid)).forceApprove(
                 address(store),
                 type(uint256).max
             );
