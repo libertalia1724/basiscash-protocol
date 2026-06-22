@@ -101,10 +101,10 @@ contract Oracle is Epoch {
         returns (uint144 amountOut)
     {
         if (token == token0) {
-            amountOut = (price0Average * amountIn).decode144();
+            amountOut = price0Average.mul(amountIn).decode144();
         } else {
             require(token == token1, 'Oracle: INVALID_TOKEN');
-            amountOut = (price1Average * amountIn).decode144();
+            amountOut = price1Average.mul(amountIn).decode144();
         }
     }
 
@@ -131,10 +131,10 @@ contract Oracle is Epoch {
             );
 
         if (token == token0) {
-            amountOut = (avg0 * amountIn).decode144();
+            amountOut = avg0.mul(amountIn).decode144();
         } else {
             require(token == token1, 'Oracle: INVALID_TOKEN');
-            amountOut = (avg1 * amountIn).decode144();
+            amountOut = avg1.mul(amountIn).decode144();
         }
         return amountOut;
     }
