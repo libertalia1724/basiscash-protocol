@@ -38,6 +38,7 @@ const config: HardhatUserConfig = {
     },
 
     hardhat: {
+      initialBaseFeePerGas: 0,
       forking: {
         url: "https://ethereum-rpc.publicnode.com",
       }

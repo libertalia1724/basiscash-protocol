@@ -17,7 +17,7 @@ describe("MockLegacyOperator Contract", function () {
   });
 
   describe("Operator Test", function () {
-    it("Legacy Contract Calls", async function () {
+    it("1 - Should return the correct operator address", async function () {
       const operatorFunc = await mockOperator.connect(user).operator();
       expect(operatorFunc).to.equal(owner.address);
     });
