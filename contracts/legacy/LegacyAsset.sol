@@ -8,7 +8,7 @@ import {
 
 import {Operator} from '../access/Operator.sol';
 
-contract MockAsset is ERC20Burnable, Operator {
+contract LegacyAsset is ERC20Burnable, Operator {
     /**
      * @notice Constructs the Basis Cash ERC-20 contract.
      */

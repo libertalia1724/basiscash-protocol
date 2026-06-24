@@ -1,23 +1,23 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
-import { MockAsset } from "../typechain-types";
+import { LegacyAsset } from "../typechain-types";
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
 import { parseEther } from "ethers";
 
-describe("MockAsset Contract", function () {
-  let cash: MockAsset;
+describe("LegacyAsset Contract", function () {
+  let cash: LegacyAsset;
   let owner: HardhatEthersSigner;
   let user: HardhatEthersSigner;
 
   beforeEach(async function () {
     [owner, user] = await ethers.getSigners();
 
-    const CashFactory = await ethers.getContractFactory("MockAsset");
+    const CashFactory = await ethers.getContractFactory("LegacyAsset");
     cash = await CashFactory.connect(owner).deploy();
     await cash.waitForDeployment();
   });
 
-  describe("MockAsset Test", function () {
+  describe("LegacyAsset Test", function () {
     it("1 - Should constructor works expected", async function () {
       expect((await cash.connect(owner).balanceOf(owner.address))).to.equal(parseEther("1"))
     });
